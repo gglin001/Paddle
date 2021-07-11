@@ -75,7 +75,12 @@ if(WITH_UNITY_BUILD)
 endif()
 
 register_operators(EXCLUDES py_layer_op py_func_op warpctc_op dgc_op lstm_op run_program_op eye_op recurrent_op
-        sync_batch_norm_op ${OP_MKL_DEPS} DEPS ${OP_HEADER_DEPS})
+        sync_batch_norm_op inplace_abn_op tensor_array_to_tensor_op
+        ${OP_MKL_DEPS} DEPS ${OP_HEADER_DEPS})
+
+# raise error
+# op_library(inplace_abn_op STATIC SRCS inplace_abn_op.cc DEPS ${OP_HEADER_DEPS} batch_norm_op activation_op op_registry)
+op_library(tensor_array_to_tensor_op SRCS tensor_array_to_tensor_op.cc DEPS ${OP_HEADER_DEPS} concat_op)
 
 op_library(run_program_op SRCS run_program_op.cc run_program_op.cu.cc DEPS executor_cache ${OP_HEADER_DEPS})
 
@@ -164,7 +169,7 @@ else()
     cc_test(test_leaky_relu_grad_grad_functor SRCS test_leaky_relu_grad_grad_functor.cc DEPS tensor device_context eigen3)
 endif()
 
-cc_library(tensor_formatter SRCS tensor_formatter.cc DEPS ${OP_HEADER_DEPS})
+cc_library(tensor_formatter STATIC SRCS tensor_formatter.cc DEPS ${OP_HEADER_DEPS})
 if (WITH_PYTHON)
   cc_library(py_func_op SRCS py_func_op.cc DEPS op_registry python pybind)
   cc_library(py_layer_op SRCS py_layer_op.cc DEPS op_registry python pybind)
@@ -204,5 +209,8 @@ endif()
 if (WITH_GPU OR WITH_ASCEND_CL)
 cc_test(copy_cross_scope_test SRCS copy_cross_scope_test.cc DEPS op_registry copy_cross_scope_op scope device_context enforce executor)
 endif()
+
+# register_operators(EXCLUDES py_layer_op py_func_op warpctc_op dgc_op lstm_op run_program_op eye_op recurrent_op
+#         sync_batch_norm_op truncated_gaussian_random_op ${OP_MKL_DEPS} DEPS ${OP_HEADER_DEPS} ${OPERATOR_DEPS})
 
 copy_if_different(${pybind_file} ${pybind_file_final})

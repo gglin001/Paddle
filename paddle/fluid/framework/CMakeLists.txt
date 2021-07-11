@@ -29,10 +29,10 @@ add_subdirectory(io)
 proto_library(framework_proto SRCS framework.proto)
 
 proto_library(op_def_proto SRCS op_def.proto)
-cc_library(op_def_api SRCS op_def_api.cc DEPS op_def_proto boost)
+cc_library(op_def_api SRCS op_def_api.cc DEPS op_def_proto boost ${proto_library_DEPS} framework_proto protobuf)
 
 FILE(GLOB OP_DEF_FILES ${PADDLE_SOURCE_DIR}/paddle/fluid/operators/compat/*.pbtxt)
-FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/op_def.pbtxt 
+FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/op_def.pbtxt
      "namespace { \n"
      "const std::unordered_map<std::string, std::string> op_def_map =  { \n")
 foreach(OP_DEF_FILE ${OP_DEF_FILES})
@@ -164,7 +164,7 @@ cc_library(data_layout_transform SRCS data_layout_transform.cc DEPS tensor math_
 cc_test(data_layout_transform_test SRCS data_layout_transform_test.cc DEPS data_layout_transform)
 
 cc_library(data_transform SRCS data_transform.cc DEPS math_function tensor
-        framework_proto selected_rows data_device_transform data_type_transform data_layout_transform)
+        framework_proto selected_rows data_device_transform data_type_transform data_layout_transform var_type_traits)
 
 cc_library(attribute SRCS attribute.cc DEPS framework_proto boost enforce)
 cc_test(program_desc_test SRCS program_desc_test.cc DEPS proto_desc
@@ -172,7 +172,7 @@ device_context)
 
 cc_library(op_version_proto SRCS op_version_proto.cc DEPS framework_proto boost)
 
-cc_library(op_version_registry SRCS op_version_registry.cc DEPS op_version_proto framework_proto boost)
+cc_library(op_version_registry SRCS op_version_registry.cc DEPS op_version_proto framework_proto boost errors enforce)
 cc_test(op_version_registry_test SRCS op_version_registry_test.cc DEPS op_version_registry)
 
 cc_library(op_proto_maker SRCS op_proto_maker.cc DEPS framework_proto attribute glog)
@@ -183,10 +183,10 @@ cc_library(shape_inference SRCS shape_inference.cc DEPS ddim attribute device_co
 
 cc_test(no_need_buffer_vars_inference_test SRCS no_need_buffer_vars_inference_test.cc DEPS no_need_buffer_vars_inference layer)
 
-cc_library(transfer_scope_cache SRCS transfer_scope_cache.cc DEPS scope framework_proto device_context)
+cc_library(transfer_scope_cache SRCS transfer_scope_cache.cc DEPS scope framework_proto device_context op_kernel_type)
 cc_library(op_kernel_type SRCS op_kernel_type.cc DEPS device_context place)
 
-cc_library(unused_var_check SRCS unused_var_check.cc DEPS glog no_need_buffer_vars_inference)
+cc_library(unused_var_check SRCS unused_var_check.cc DEPS glog no_need_buffer_vars_inference var_type_traits scope)
 
 cc_library(operator SRCS operator.cc DEPS op_info device_context tensor scope glog trainer_desc_proto data_feed_proto
     shape_inference data_transform lod_tensor profiler transfer_scope_cache op_kernel_type op_call_stack unused_var_check nan_inf_utils)
@@ -197,7 +197,7 @@ cc_test(operator_exception_test SRCS operator_exception_test.cc DEPS operator op
 cc_library(version SRCS version.cc)
 cc_test(version_test SRCS version_test.cc DEPS version)
 
-cc_library(proto_desc SRCS var_desc.cc op_desc.cc block_desc.cc program_desc.cc DEPS shape_inference op_info operator glog version)
+cc_library(proto_desc STATIC SRCS var_desc.cc op_desc.cc block_desc.cc program_desc.cc DEPS shape_inference op_info operator glog version ${proto_library_DEPS} protobuf)
 
 cc_library(op_registry SRCS op_registry.cc DEPS op_proto_maker op_info operator glog proto_desc)
 
@@ -215,9 +215,9 @@ if(WITH_PYTHON)
   py_proto_compile(distributed_strategy_py_proto SRCS distributed_strategy.proto)
 #Generate an empty \
     #__init__.py to make framework_py_proto as a valid python module.
-  add_custom_target(fleet_proto_init ALL  
+  add_custom_target(fleet_proto_init ALL
     COMMAND ${CMAKE_COMMAND} -E make_directory ${PADDLE_BINARY_DIR}/python/paddle/distributed/fleet/proto
-    COMMAND ${CMAKE_COMMAND} -E touch ${PADDLE_BINARY_DIR}/python/paddle/distributed/fleet/proto/__init__.py 
+    COMMAND ${CMAKE_COMMAND} -E touch ${PADDLE_BINARY_DIR}/python/paddle/distributed/fleet/proto/__init__.py
   )
   add_custom_target(framework_py_proto_init ALL COMMAND ${CMAKE_COMMAND} -E touch __init__.py)
   add_dependencies(framework_py_proto framework_py_proto_init trainer_py_proto distributed_strategy_py_proto fleet_proto_init)
@@ -250,7 +250,7 @@ endif(WITH_PSCORE)
 cc_library(lod_rank_table SRCS lod_rank_table.cc DEPS lod_tensor)
 
 cc_library(feed_fetch_method SRCS feed_fetch_method.cc DEPS lod_tensor scope glog)
-cc_library(variable_helper SRCS variable_helper.cc DEPS lod_tensor)
+cc_library(variable_helper SRCS variable_helper.cc DEPS lod_tensor var_type_traits)
 
 cc_library(naive_executor SRCS naive_executor.cc DEPS op_registry denormal device_context scope framework_proto glog lod_rank_table feed_fetch_method graph_to_program_pass variable_helper)
 
@@ -349,7 +349,7 @@ else()
     cc_test(dist_multi_trainer_test SRCS dist_multi_trainer_test.cc DEPS
         conditional_block_op executor)
 endif()
-cc_library(prune SRCS prune.cc DEPS framework_proto boost)
+cc_library(prune STATIC SRCS prune.cc DEPS framework_proto boost ${proto_library_DEPS} protobuf)
 cc_test(prune_test SRCS prune_test.cc DEPS op_info prune recurrent_op device_context)
 cc_test(var_type_inference_test SRCS var_type_inference_test.cc DEPS op_registry
         proto_desc)
@@ -404,8 +404,8 @@ include_directories(${PADDLE_SOURCE_DIR}/paddle/fluid/platform)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../extension/include)
 
 cc_library(custom_tensor SRCS ../extension/src/ext_tensor.cc DEPS lod_tensor memory enforce)
-cc_library(op_meta_info SRCS ../extension/src/ext_op_meta_info.cc DEPS custom_tensor)
-cc_library(custom_operator SRCS custom_operator.cc DEPS tensor attribute framework_proto op_registry operator dynamic_loader string_helper custom_tensor op_meta_info)
+cc_library(op_meta_info STATIC SRCS ../extension/src/ext_op_meta_info.cc DEPS custom_tensor custom_operator)
+cc_library(custom_operator STATIC SRCS custom_operator.cc DEPS tensor attribute framework_proto op_registry operator dynamic_loader string_helper custom_tensor op_meta_info)
 cc_test(custom_tensor_test SRCS custom_tensor_test.cc DEPS custom_tensor glog)
 
 set(FLUID_FRAMEWORK_MODULES proto_desc memory lod_tensor executor data_feed_proto layer dynamic_loader custom_operator)

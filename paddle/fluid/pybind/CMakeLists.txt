@@ -111,14 +111,14 @@ if(WITH_PYTHON)
     list(APPEND OP_FUNCTION_GENERETOR_DEPS bkcl_context)
   endif(WITH_XPU_BKCL)
 
-  add_executable(op_function_generator op_function_generator.cc)
-  target_link_libraries(op_function_generator ${OP_FUNCTION_GENERETOR_DEPS})
+  # add_executable(op_function_generator op_function_generator.cc)
+  # target_link_libraries(op_function_generator ${OP_FUNCTION_GENERETOR_DEPS})
 
-  get_property (os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
-  target_link_libraries(op_function_generator ${os_dependency_modules})
-  if(WITH_ROCM)
-    target_link_libraries(op_function_generator ${ROCM_HIPRTC_LIB})
-  endif()
+  # get_property (os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
+  # target_link_libraries(op_function_generator ${os_dependency_modules})
+  # if(WITH_ROCM)
+  #   target_link_libraries(op_function_generator ${ROCM_HIPRTC_LIB})
+  # endif()
 
   set(impl_file ${CMAKE_SOURCE_DIR}/paddle/fluid/pybind/op_function_impl.h)
   set(tmp_impl_file ${impl_file}.tmp)
@@ -179,15 +179,15 @@ if(WITH_PYTHON)
     # copy these *.so to current directory and append current directory to
     # LD_LIBRARY_PATH. This is different with Windows platformm, which search
     # *.dll in current directory automatically.
-    add_custom_command(TARGET op_function_generator
-          POST_BUILD
-          COMMAND ${CMAKE_COMMAND} -E env "LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH}:."
-              "${CMAKE_CURRENT_BINARY_DIR}/op_function_generator"
-              "${tmp_impl_file}"
-          COMMAND ${CMAKE_COMMAND} -E copy_if_different ${tmp_impl_file} ${impl_file}
-          COMMENT "copy_if_different ${tmp_impl_file} to ${impl_file}"
-          VERBATIM
-    )
+    # add_custom_command(TARGET op_function_generator
+    #       POST_BUILD
+    #       COMMAND ${CMAKE_COMMAND} -E env "LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH}:."
+    #           "${CMAKE_CURRENT_BINARY_DIR}/op_function_generator"
+    #           "${tmp_impl_file}"
+    #       COMMAND ${CMAKE_COMMAND} -E copy_if_different ${tmp_impl_file} ${impl_file}
+    #       COMMENT "copy_if_different ${tmp_impl_file} to ${impl_file}"
+    #       VERBATIM
+    # )
     if(WITH_MKL)
       add_custom_command(TARGET op_function_generator
             PRE_LINK
@@ -217,5 +217,5 @@ if(WITH_PYTHON)
 
   get_property (os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
   target_link_libraries(paddle_pybind ${os_dependency_modules})
-  add_dependencies(paddle_pybind op_function_generator)
+  # add_dependencies(paddle_pybind op_function_generator)
 endif(WITH_PYTHON)

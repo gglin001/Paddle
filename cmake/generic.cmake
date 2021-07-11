@@ -307,8 +307,32 @@ function(cc_library TARGET_NAME)
         add_library(${TARGET_NAME} SHARED ${cc_library_SRCS})
       elseif(cc_library_INTERFACE OR cc_library_interface)
         generate_dummy_static_lib(LIB_NAME ${TARGET_NAME} FILE_PATH ${target_SRCS} GENERATOR "generic.cmake:cc_library")
-      else()
+      elseif(cc_library_STATIC OR cc_library_static)
         add_library(${TARGET_NAME} STATIC ${cc_library_SRCS})
+        find_fluid_modules(${TARGET_NAME})
+      elseif((${TARGET_NAME} STREQUAL "executor") OR
+            #  (${TARGET_NAME} STREQUAL "op_def_api") OR
+            #  (${TARGET_NAME} STREQUAL "data_loader") OR
+            #  (${TARGET_NAME} STREQUAL "device_tracer") OR
+            #  (${TARGET_NAME} STREQUAL "imperative_profiler") OR
+            #  (${TARGET_NAME} STREQUAL "profiler") OR
+            #  (${TARGET_NAME} STREQUAL "prune") OR
+            # (${TARGET_NAME} STREQUAL "device_memory_aligment") OR
+            #  (${TARGET_NAME} STREQUAL "aligned_allocator") OR
+            #  (${TARGET_NAME} STREQUAL "allocator") OR
+            #  (${TARGET_NAME} STREQUAL "op_version_registry") OR
+            #  (${TARGET_NAME} STREQUAL "jit_kernel_intrinsic") OR
+            #  (${TARGET_NAME} STREQUAL "jit_kernel_mix") OR
+            #  (${TARGET_NAME} STREQUAL "blas") OR
+            #  (${TARGET_NAME} STREQUAL "fs") OR
+              # (${TARGET_NAME} STREQUAL "recurrent_op_helper") OR
+              # (${TARGET_NAME} STREQUAL "conditional_block_op") OR
+              # (${TARGET_NAME} STREQUAL "conditional_block_op_helper")
+              (${TARGET_NAME} STREQUAL "recurrent_op"))
+        add_library(${TARGET_NAME} STATIC ${cc_library_SRCS})
+        find_fluid_modules(${TARGET_NAME})
+      else()
+        add_library(${TARGET_NAME} SHARED ${cc_library_SRCS})
         find_fluid_modules(${TARGET_NAME})
       endif()
     if(cc_library_DEPS)
@@ -781,7 +805,9 @@ function(proto_library TARGET_NAME)
   set(proto_srcs)
   set(proto_hdrs)
   paddle_protobuf_generate_cpp(proto_srcs proto_hdrs ${proto_library_SRCS})
-  cc_library(${TARGET_NAME} SRCS ${proto_srcs} DEPS ${proto_library_DEPS} protobuf)
+  # cc_library(${TARGET_NAME} STATIC SRCS ${proto_srcs} DEPS ${proto_library_DEPS} protobuf)
+  # cc_library(${TARGET_NAME} SRCS ${proto_srcs} ${PROTO_HDRS} DEPS ${proto_library_DEPS} ${PROTOBUF_LIBRARY} protobuf)
+  cc_library(${TARGET_NAME} STATIC SRCS ${proto_srcs} ${PROTO_HDRS} DEPS ${proto_library_DEPS} protobuf)
   add_dependencies(extern_xxhash ${TARGET_NAME})
 endfunction()
 

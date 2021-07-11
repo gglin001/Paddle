@@ -15,11 +15,13 @@ register_operators(EXCLUDES
     fusion_group_op
     fusion_gru_op
     fusion_lstm_op
-    fused_bn_add_activation_op)
+    fused_bn_add_activation_op
+    DEPS jit_kernel_helper op_registry fc blas sequence2batch sequence_padding
+    )
 
 # fusion_gru_op does not have CUDA kernel
-op_library(fusion_gru_op)
-op_library(fusion_lstm_op)
+op_library(fusion_gru_op DEPS jit_kernel_helper op_registry fc blas sequence2batch op_version_registry)
+op_library(fusion_lstm_op DEPS jit_kernel_helper op_registry fc blas sequence2batch)
 file(APPEND ${pybind_file} "USE_CPU_ONLY_OP(fusion_gru);\n")
 file(APPEND ${pybind_file} "USE_CPU_ONLY_OP(fusion_lstm);\n")
 

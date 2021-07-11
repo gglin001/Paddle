@@ -5,14 +5,14 @@ cc_library(scale_loss_grad_op_handle SRCS scale_loss_grad_op_handle.cc DEPS op_h
 cc_library(fetch_op_handle SRCS fetch_op_handle.cc DEPS op_handle_base scope lod_tensor ddim memory)
 cc_library(fetch_async_op_handle SRCS fetch_async_op_handle.cc DEPS op_handle_base scope lod_tensor ddim memory)
 
-cc_library(share_tensor_buffer_functor SRCS share_tensor_buffer_functor.cc DEPS framework_proto scope place operator op_registry) 
-cc_library(computation_op_handle SRCS computation_op_handle.cc DEPS framework_proto scope place operator op_registry)
+cc_library(share_tensor_buffer_functor SRCS share_tensor_buffer_functor.cc DEPS framework_proto scope place operator op_registry)
+cc_library(computation_op_handle SRCS computation_op_handle.cc DEPS framework_proto scope place operator op_registry op_handle_base)
 cc_library(share_tensor_buffer_op_handle SRCS share_tensor_buffer_op_handle.cc DEPS op_handle_base scope computation_op_handle share_tensor_buffer_functor)
-cc_library(rpc_op_handle SRCS rpc_op_handle.cc DEPS framework_proto scope place operator op_registry)
-cc_library(fetch_barrier_op_handle SRCS fetch_barrier_op_handle.cc DEPS framework_proto scope place operator op_registry)
-cc_library(multi_devices_helper SRCS multi_devices_helper.cc DEPS graph graph_helper)
+cc_library(rpc_op_handle SRCS rpc_op_handle.cc DEPS framework_proto scope place operator op_registry op_handle_base graph)
+cc_library(fetch_barrier_op_handle SRCS fetch_barrier_op_handle.cc DEPS framework_proto scope place operator op_registry op_handle_base)
+cc_library(multi_devices_helper SRCS multi_devices_helper.cc DEPS graph graph_helper op_handle_base var_handle computation_op_handle eager_deletion_op_handle share_tensor_buffer_op_handle)
 
-cc_library(variable_visitor SRCS variable_visitor.cc DEPS lod_tensor selected_rows)
+cc_library(variable_visitor SRCS variable_visitor.cc DEPS lod_tensor selected_rows var_type_traits)
 
 if(WITH_PSCORE)
     set(DISTRIBUTE_COMPILE_FLAGS "-Wno-non-virtual-dtor -Wno-error=non-virtual-dtor -Wno-error=delete-non-virtual-dtor")
@@ -32,7 +32,7 @@ if(WITH_GPU)
             ddim memory dynload_cuda variable_visitor place device_memory_aligment all_reduce_op_handle fused_all_reduce_op_handle)
 
     if(WITH_DGC)
-        nv_library(sparse_all_reduce_op_handle SRCS sparse_all_reduce_op_handle.cc DEPS op_handle_base scope 
+        nv_library(sparse_all_reduce_op_handle SRCS sparse_all_reduce_op_handle.cc DEPS op_handle_base scope
             lod_tensor ddim memory dynload_cuda variable_visitor dgc all_reduce_op_handle)
     endif()
 
@@ -68,7 +68,7 @@ else()
     cc_library(all_reduce_op_handle SRCS all_reduce_op_handle.cc DEPS op_handle_base scope lod_tensor ddim memory
              variable_visitor)
     cc_library(fused_all_reduce_op_handle SRCS fused_all_reduce_op_handle.cc DEPS op_handle_base scope lod_tensor ddim memory
-            variable_visitor place device_memory_aligment)
+            variable_visitor place device_memory_aligment all_reduce_op_handle)
     cc_library(grad_merge_all_reduce_op_handle SRCS grad_merge_all_reduce_op_handle.cc DEPS op_handle_base scope lod_tensor
             ddim memory variable_visitor place device_memory_aligment all_reduce_op_handle fused_all_reduce_op_handle)
     if(WITH_DISTRIBUTE)
@@ -97,13 +97,15 @@ set(SSA_GRAPH_EXECUTOR_DEPS graph framework_proto
     buffer_shared_cross_op_memory_reuse_pass
     inplace_addto_op_pass
     set_reader_device_info_utils
-    add_reader_dependency_pass)
+    add_reader_dependency_pass
+    fetch_op_handle
+    fetch_async_op_handle)
 cc_library(ssa_graph_executor SRCS ssa_graph_executor.cc DEPS ${SSA_GRAPH_EXECUTOR_DEPS})
 
 cc_library(threaded_ssa_graph_executor SRCS threaded_ssa_graph_executor.cc DEPS fetch_op_handle ssa_graph_executor scope
         simple_threadpool device_context)
 
-cc_library(parallel_ssa_graph_executor SRCS parallel_ssa_graph_executor.cc DEPS threaded_ssa_graph_executor)
+cc_library(parallel_ssa_graph_executor SRCS parallel_ssa_graph_executor.cc DEPS threaded_ssa_graph_executor fast_threaded_ssa_graph_executor)
 
 set(ASYNC_SSA_GRAPH_EXECUTOR_DEPS threaded_ssa_graph_executor)
 
@@ -128,8 +130,8 @@ cc_test(exception_holder_test SRCS exception_holder_test.cc )
 
 set(IR_PASS_DEPS graph_viz_pass multi_devices_graph_pass
     multi_devices_graph_print_pass multi_devices_graph_check_pass
-    fuse_elewise_add_act_pass fuse_bn_act_pass fuse_bn_add_act_pass 
-    multi_batch_merge_pass 
+    fuse_elewise_add_act_pass fuse_bn_act_pass fuse_bn_add_act_pass
+    multi_batch_merge_pass
     fuse_relu_depthwise_conv_pass
     lock_free_optimize_pass
     coalesce_grad_tensor_pass fuse_all_reduce_op_pass backward_optimizer_op_deps_pass
@@ -138,7 +140,8 @@ set(IR_PASS_DEPS graph_viz_pass multi_devices_graph_pass
 if(NOT APPLE AND NOT WIN32 AND (WITH_GPU OR WITH_ROCM))
   set(IR_PASS_DEPS ${IR_PASS_DEPS} fusion_group_pass)
 endif()
-cc_library(build_strategy SRCS build_strategy.cc DEPS pass_builder ${IR_PASS_DEPS})
+cc_library(build_strategy SRCS build_strategy.cc DEPS pass_builder ${IR_PASS_DEPS}
+           all_reduce_deps_pass graph_to_program_pass sequential_execution_pass add_reader_dependency_pass modify_op_lock_and_record_event_pass)
 
 if (WITH_MKLDNN)
   target_link_libraries(build_strategy mkldnn_placement_pass)

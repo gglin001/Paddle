@@ -20,7 +20,14 @@ function(op_library TARGET)
     set(MIOPEN_FILE)
     set(mkldnn_cc_srcs)
     set(MKLDNN_FILE)
-    set(op_common_deps operator op_registry math_function layer common_infer_shape_functions)
+
+    set(op_common_deps operator op_registry math_function layer common_infer_shape_functions
+        selected_rows_functor sequence2batch concat_and_split unpooling eigen_function
+        sequence2batch segment_pooling generator sampler lstm_compute gru_compute im2col
+        vol2col pooling fc softmax maxouting matrix_bit_code cross_entropy beam_search matrix_inverse
+        cos_sim_functor tree2col tree2col
+        tensor_formatter device_memory_aligment)
+
     if (WITH_ASCEND_CL)
       set(op_common_deps ${op_common_deps} npu_op_runner)
     endif()
@@ -202,8 +209,12 @@ function(op_library TARGET)
             # Add alias library to handle dependencies.
             add_library(${TARGET} ALIAS ${UNITY_TARGET})
         else()
-            cc_library(${TARGET} SRCS ${cc_srcs} ${mkldnn_cc_srcs} ${xpu_cc_srcs} ${npu_cc_srcs} DEPS ${op_library_DEPS}
-                ${op_common_deps})
+            # cc_library(${TARGET} SRCS ${cc_srcs} ${mkldnn_cc_srcs} ${xpu_cc_srcs} ${npu_cc_srcs} DEPS ${op_library_DEPS}
+            #     ${op_common_deps})
+
+            # tmp static
+            cc_library(${TARGET} STATIC SRCS ${cc_srcs} ${mkldnn_cc_srcs} ${xpu_cc_srcs} ${npu_cc_srcs} DEPS ${op_library_DEPS} ${op_common_deps})
+
         endif()
     endif()
 

@@ -55,7 +55,7 @@ cc_library(subgraph_detector SRCS subgraph_detector.cc DEPS graph_pattern_detect
 cc_library(fuse_pass_base SRCS fuse_pass_base.cc DEPS op_compat_sensible_pass)
 cc_library(placement_pass_base SRCS placement_pass_base.cc DEPS pass)
 
-cc_library(coalesce_grad_tensor_pass SRCS coalesce_grad_tensor_pass.cc DEPS graph graph_helper)
+cc_library(coalesce_grad_tensor_pass SRCS coalesce_grad_tensor_pass.cc DEPS graph graph_helper pass)
 
 pass_library(graph_to_program_pass base)
 pass_library(graph_viz_pass base)
@@ -124,15 +124,15 @@ if(WITH_MKLDNN)
     pass_library(multi_gru_seq_fuse_pass inference DIR mkldnn)
 endif()
 
-cc_library(fuse_bn_act_pass SRCS fuse_bn_act_pass.cc DEPS pass graph_pattern_detector )
-cc_library(fuse_bn_add_act_pass SRCS fuse_bn_add_act_pass.cc DEPS pass graph_pattern_detector )
-cc_library(fuse_elewise_add_act_pass SRCS fuse_elewise_add_act_pass.cc DEPS pass graph_pattern_detector )
-cc_library(fuse_relu_depthwise_conv_pass SRCS fuse_relu_depthwise_conv_pass.cc DEPS pass graph_pattern_detector )
+cc_library(fuse_bn_act_pass SRCS fuse_bn_act_pass.cc DEPS pass graph_pattern_detector fuse_pass_base)
+cc_library(fuse_bn_add_act_pass SRCS fuse_bn_add_act_pass.cc DEPS pass graph_pattern_detector fuse_pass_base)
+cc_library(fuse_elewise_add_act_pass SRCS fuse_elewise_add_act_pass.cc DEPS pass graph_pattern_detector fuse_pass_base)
+cc_library(fuse_relu_depthwise_conv_pass SRCS fuse_relu_depthwise_conv_pass.cc DEPS pass graph_pattern_detector fuse_pass_base)
 
 set(GLOB_PASS_LIB ${PASS_LIBRARY} CACHE INTERNAL "Global PASS library")
 
 cc_library(pass_builder SRCS pass_builder.cc DEPS pass)
-cc_library(pass_test_util SRCS pass_test_util.cc DEPS graph pass)
+cc_library(pass_test_util SRCS pass_test_util.cc DEPS graph pass graph_traits)
 
 cc_test(node_test SRCS node_test.cc DEPS node)
 cc_test(pass_test SRCS pass_test.cc DEPS graph pass graph_helper)

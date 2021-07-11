@@ -18,6 +18,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(PADDLE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(PADDLE_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
+# use zld in mac
+# add_link_options("-fuse-ld=/Users/allen/.local/bin/zld")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
 include(system)
 
 # Note(zhouwei): Ninja Generator will set CMAKE_BUILD_TYPE to Debug

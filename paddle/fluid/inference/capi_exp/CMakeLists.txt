@@ -15,7 +15,7 @@
 
 set(C_API_SRCS pd_config.cc pd_predictor.cc pd_tensor.cc pd_utils.cc)
 
-cc_library(paddle_inference_c SRCS ${C_API_SRCS} DEPS paddle_inference)
+cc_library(paddle_inference_c SRCS ${C_API_SRCS} DEPS paddle_inference analysis_predictor)
 
 if(NOT ON_INFER)
     return()

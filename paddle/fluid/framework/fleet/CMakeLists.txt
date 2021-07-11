@@ -39,9 +39,9 @@ endif(WITH_BOX_PS)
 
 
 if(WITH_GLOO)
-    cc_library(gloo_wrapper SRCS gloo_wrapper.cc DEPS framework_proto variable_helper scope gloo)
+    cc_library(gloo_wrapper SRCS gloo_wrapper.cc DEPS framework_proto variable_helper scope gloo string_helper)
 else()
-    cc_library(gloo_wrapper SRCS gloo_wrapper.cc DEPS framework_proto variable_helper scope)
+    cc_library(gloo_wrapper SRCS gloo_wrapper.cc DEPS framework_proto variable_helper scope string_helper)
 endif(WITH_GLOO)
 
 if(WITH_PSLIB)
