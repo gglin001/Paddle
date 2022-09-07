@@ -592,4 +592,14 @@ if(WITH_PYTHON)
   get_property(os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
   target_link_libraries(paddle_pybind ${os_dependency_modules})
   add_dependencies(paddle_pybind op_function_generator_cmd)
+
+  # add_custom_command(
+  #   TARGET paddle_pybind
+  #   POST_BUILD
+  #   COMMAND echo "copy paddle_pybind from paddle_pybind"
+  #   COMMAND cp ${CMAKE_SOURCE_DIR}/build/paddle/fluid/pybind/libpaddle_pybind.so
+  #           ${CMAKE_SOURCE_DIR}/python/paddle/fluid/core_avx.so
+  #   BYPRODUCTS ${CMAKE_SOURCE_DIR}/python/paddle/fluid/core_avx.so)
+  # # cp build/paddle/fluid/pybind/libpaddle_pybind.so python/paddle/fluid/core_avx.so
+
 endif()
