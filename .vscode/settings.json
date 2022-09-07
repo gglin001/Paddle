@@ -1,0 +1,38 @@
+{
+    "python.defaultInterpreterPath": "/opt/conda/bin/python",
+    "cmake.configureSettings": {
+        "CMAKE_INSTALL_PREFIX": "install",
+        "Python3_EXECUTABLE": "/opt/conda/bin/python",
+        "WITH_FLUID_ONLY": "ON",
+        // "ON_INFER": "ON",
+        // "WITH_INFERENCE_API_TEST": "ON",
+        "WITH_INFERENCE_API_TEST": "OFF",
+        "WITH_GPU": "OFF",
+        "WITH_MKL": "ON",
+        "WITH_DLNNE": "OFF",
+        "WITH_CUSTOM_DEVICE": "ON",
+        // "WITH_TESTING": "ON",
+        "WITH_TESTING": "OFF",
+        "WITH_PYTHON": "ON",
+        "WITH_AVX": "ON",
+        "WITH_DISTRIBUTE": "OFF",
+        "WITH_INFRT": "OFF",
+        "WITH_CINN": "OFF",
+        "PY_VERSION": "3.7",
+    },
+    // "cmake.generator": "Unix Makefiles",
+    "cmake.generator": "Ninja",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/python/"
+    ],
+    "terminal.integrated.env.linux": {
+        // "PYTHONPATH": "${workspaceFolder}/build/python",
+        "PYTHONPATH": "${workspaceFolder}/python",
+        // "LD_LIBRARY_PATH": "${workspaceFolder}/build/python/paddle/libs:${env:LD_LIBRARY_PATH}",
+        // "GLOG_v": "10",
+        "GLOG_minloglevel": "INFO",
+        "FLAGS_enable_eager_mode": "1",
+    },
+    "python.formatting.provider": "yapf",
+    "files.trimTrailingWhitespace": false,
+}
