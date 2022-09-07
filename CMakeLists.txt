@@ -94,6 +94,12 @@ message(STATUS "C compiler: ${CMAKE_C_COMPILER}, version: "
                "${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
 message(STATUS "AR tools: ${CMAKE_AR}")
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND LINUX)
+  # only tested for calng-10 on ubuntu18.04
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+endif()
+
 # MUSL build turn off warnings
 if(WITH_MUSL)
   set(CMAKE_CXX_FLAGS
