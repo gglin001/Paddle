@@ -28,6 +28,7 @@
 
 namespace phi {
 
+// debug
 template <typename T, typename Context>
 void UniformRandomKernel(const Context& dev_ctx,
                          const IntArray& shape,
