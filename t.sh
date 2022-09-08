@@ -1,6 +1,6 @@
 # cmake config 
 
-# cmake build all with dbg libs
+# cmake build all/paddle_python with dbg libs
 
 # cp files
 cp build/paddle/fluid/pybind/libpaddle_pybind.so python/paddle/fluid/core_avx.so
