@@ -40,6 +40,7 @@ Makefile
 .test_env/
 .cache/
 third_party/
+.cache
 
 *~
 bazel-*
@@ -77,3 +78,5 @@ paddle/fluid/pybind/tmp_eager_op_function_impl.h
 paddle/fluid/pybind/eager_op_function_impl.h
 paddle/fluid/pybind/eager_op_function_impl.h
 paddle/fluid/pybind/op_function_impl.h
+
+*.mlir
