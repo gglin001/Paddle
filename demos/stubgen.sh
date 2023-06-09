@@ -31,8 +31,9 @@ echo "from . import eager" >>python/paddle/fluid/libpaddle/__init__.pyi
 echo "from . import ops" >>python/paddle/fluid/libpaddle/eager/__init__.pyi
 echo "from . import legacy" >>python/paddle/fluid/libpaddle/eager/ops/__init__.pyi
 
-# optional, make `paddle.fluid` exposed
+# optional
 echo "from . import fluid" >>python/paddle/__init__.pyi
+echo "from . import static" >>python/paddle/__init__.pyi
 
 # no need
 # stubgen \
