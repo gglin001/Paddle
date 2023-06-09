@@ -12,7 +12,7 @@ paddle.fluid.core.set_autotune_range()
 paddle.fluid.core.eager.ops.accuracy()
 paddle.fluid.core.eager.ops.legacy.accuracy()
 
-# paddle.fluid.core.eager.Tensor
+a = paddle.fluid.core.eager.Tensor
 # a = paddle.fluid.libpaddle.eager.Tensor()
-a = paddle.Tensor()
+# a = paddle.Tensor()
 a.abs
