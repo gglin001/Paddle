@@ -32,8 +32,12 @@ echo "from . import ops" >>python/paddle/fluid/libpaddle/eager/__init__.pyi
 echo "from . import legacy" >>python/paddle/fluid/libpaddle/eager/ops/__init__.pyi
 
 # optional
-echo "from . import fluid" >>python/paddle/__init__.pyi
-echo "from . import static" >>python/paddle/__init__.pyi
+echo "from .fluid.libpaddle.eager.ops import *" >>python/paddle/_C_ops.pyi
+echo "from .fluid.libpaddle.eager.ops.legacy import *" >>python/paddle/_legacy_C_ops.pyi
+
+# optional
+echo "from . import fluid" >>python/paddle/__init__.py
+echo "from . import static" >>python/paddle/__init__.py
 
 # no need
 # stubgen \
