@@ -29,6 +29,7 @@
 #include "paddle/fluid/platform/device/gpu/gpu_types.h"
 #include "paddle/fluid/string/printf.h"
 #include "paddle2onnx/converter.h"
+#include "poprt/runtime/lightrunner.hpp"
 
 #ifdef PADDLE_WITH_TESTING
 #include <gtest/gtest.h>
@@ -228,6 +229,8 @@ class ONNXRuntimePredictor : public PaddlePredictor {
   std::shared_ptr<Ort::Env> env_;
   std::shared_ptr<Ort::Session> session_{nullptr};
   std::shared_ptr<Ort::IoBinding> binding_;
+
+  std::shared_ptr<poprt::runtime::LightRunner> poprt_runner_;
 
   AnalysisConfig config_;
   std::mutex clone_mutex_;

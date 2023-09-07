@@ -38,6 +38,11 @@
 #include "paddle/fluid/platform/place.h"
 #include "paddle/fluid/platform/profiler.h"
 
+#include "poprt/compiler/compiler.hpp"
+#include "poprt/compiler/compiler_options.hpp"
+#include "poprt/runtime/lightrunner.hpp"
+#include "poprt/runtime/runtime_config.hpp"
+
 namespace paddle {
 
 paddle_infer::DataType ConvertONNXType(ONNXTensorElementDataType type) {
@@ -159,6 +164,13 @@ bool ONNXRuntimePredictor::Init() {
                         &out_size);
   }
 
+  // poprt::compiler::CompilerOptions opts;
+  const std::vector<std::string> outputs;
+  poprt::runtime::LightRunner runner(
+      poprt::compiler::Compiler::compile(onnx_proto, outputs));
+
+  // aa
+  /*
   Ort::SessionOptions session_options;
   if (config_.ort_optimization_enabled()) {
     session_options.SetGraphOptimizationLevel(
@@ -188,6 +200,9 @@ bool ONNXRuntimePredictor::Init() {
       *env_, onnx_proto, static_cast<size_t>(out_size), session_options);
   InitBinding();
   paddle::framework::InitMemoryMethod();
+  // aa
+  */
+
   delete onnx_proto;
   onnx_proto = nullptr;
   return true;
@@ -329,11 +344,14 @@ Ort::Value ONNXRuntimePredictor::GetOrtValue(const ONNXDesc &desc,
 bool ONNXRuntimePredictor::Run(const std::vector<PaddleTensor> &inputs,
                                std::vector<PaddleTensor> *output_data,
                                int batch_size) {
-  LOG(ERROR) << "Not support Run";
-  return false;
+  // LOG(ERROR) << "Not support Run";
+
+  // poprt_runner_->execute()
+  return true;
 }
 
 bool ONNXRuntimePredictor::ZeroCopyRun() {
+  // aa
   try {
     const char *device_name = platform::is_cpu_place(place_) ? "Cpu" : "Cuda";
     std::vector<Ort::Value> inputs;

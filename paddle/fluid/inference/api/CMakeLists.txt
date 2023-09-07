@@ -84,7 +84,9 @@ if(WITH_ONNXRUNTIME)
          model_utils
          onnxruntime
          paddle2onnx
-         fleet_executor)
+         fleet_executor
+         poprt::poprt_compiler
+         poprt::poprt_runtime)
 else()
   cc_library(
     analysis_predictor
