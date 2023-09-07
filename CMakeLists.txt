@@ -343,6 +343,21 @@ if(SANITIZER_TYPE AND NOT "${SANITIZER_TYPE}" MATCHES
   return()
 endif()
 
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  execute_process(
+    COMMAND ${CMAKE_C_COMPILER} -fuse-ld=gold -Wl,--version
+    OUTPUT_VARIABLE stdout
+    ERROR_QUIET)
+  if("${stdout}" MATCHES "GNU gold")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
+  else()
+    message(
+      WARNING
+        "GNU gold linker isn't available, using the default system linker.")
+  endif()
+endif()
+
 if(LINUX
    AND NOT WITH_CUSTOM_DEVICE
    AND NOT WITH_GPU
