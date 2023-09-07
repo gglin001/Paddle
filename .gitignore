@@ -41,6 +41,7 @@ build_doc/
 *.user
 *.tmp
 *.pyc
+*.pyi
 
 .vscode
 .idea

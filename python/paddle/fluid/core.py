@@ -343,6 +343,9 @@ try:
     # CINN
     from .libpaddle import is_run_with_cinn
 
+    # eager module
+    from .libpaddle import eager
+
 except Exception as e:
     if has_paddle_dy_lib:
         sys.stderr.write(

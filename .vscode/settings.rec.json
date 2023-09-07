@@ -1,0 +1,15 @@
+{
+    "cmake.configureSettings": {
+        "CMAKE_INSTALL_PREFIX": "${workspaceFolder}/build/install",
+        "WITH_GPU": "OFF",
+    },
+    "python.analysis.extraPaths": [
+        // "${workspaceFolder}/build/python/",
+        "${workspaceFolder}/python/",
+    ],
+    "terminal.integrated.env.linux": {
+        // "PYTHONPATH": "${workspaceFolder}/build/python/",
+        "PYTHONPATH": "${workspaceFolder}/python/",
+        // "GLOG_v": "10",
+    },
+}
