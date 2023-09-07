@@ -237,7 +237,7 @@ function(build_protobuf TARGET_NAME BUILD_FOR_HOST)
 
   if(WITH_IPU)
     set(PROTOBUF_REPOSITORY ${GIT_URL}/protocolbuffers/protobuf.git)
-    set(PROTOBUF_TAG v21.12)
+    set(PROTOBUF_TAG d750fbf648256c7c631f51ffdbf67d7c18b0114e)
   elseif(WIN32)
     set(PROTOBUF_REPOSITORY ${GIT_URL}/protocolbuffers/protobuf.git)
     # Change the tag to support building with vs2019
@@ -322,7 +322,7 @@ function(build_protobuf TARGET_NAME BUILD_FOR_HOST)
 endfunction()
 
 if(WITH_IPU)
-  set(PROTOBUF_VERSION 21.12)
+  set(PROTOBUF_VERSION d750fbf648256c7c631f51ffdbf67d7c18b0114e)
 elseif(WITH_ARM_BRPC)
   set(PROTOBUF_VERSION 21.12-baidu-ee-common)
 elseif(WIN32)

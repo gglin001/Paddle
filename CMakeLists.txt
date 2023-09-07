@@ -114,6 +114,20 @@ if(WITH_MUSL)
   )
 endif()
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+message("Python3_SITEARCH: ${Python3_SITEARCH}")
+# find poprt
+execute_process(
+  COMMAND ${Python3_EXECUTABLE} -c
+          "import poprt;print(poprt.utils.cmake_prefix_path, end='')"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE poprt_ROOT_PATH)
+# find_package(poprt REQUIRED COMPONENTS poprt_runtime poprt_compiler)
+message("Python3_EXECUTABLE: ${Python3_EXECUTABLE}")
+message("poprt_ROOT_PATH: ${poprt_ROOT_PATH}")
+find_package(poprt REQUIRED PATHS ${poprt_ROOT_PATH}
+             COMPONENTS poprt_runtime poprt_compiler)
+
 if(APPLE AND WITH_ARM)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -target arm64-apple-darwin")
   set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -target arm64-apple-darwin")
@@ -341,6 +355,21 @@ if(SANITIZER_TYPE AND NOT "${SANITIZER_TYPE}" MATCHES
                       "^(Address|Leak|Memory|Thread|Undefined)$")
   message("Choose the correct type of sanitizer")
   return()
+endif()
+
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  execute_process(
+    COMMAND ${CMAKE_C_COMPILER} -fuse-ld=gold -Wl,--version
+    OUTPUT_VARIABLE stdout
+    ERROR_QUIET)
+  if("${stdout}" MATCHES "GNU gold")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
+  else()
+    message(
+      WARNING
+        "GNU gold linker isn't available, using the default system linker.")
+  endif()
 endif()
 
 if(LINUX
