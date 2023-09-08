@@ -764,6 +764,20 @@ if(WITH_CPP_DIST)
   endif()
 endif()
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+message("Python3_SITEARCH: ${Python3_SITEARCH}")
+# find poprt
+execute_process(
+  COMMAND ${Python3_EXECUTABLE} -c
+          "import poprt;print(poprt.utils.cmake_prefix_path, end='')"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE poprt_ROOT_PATH)
+# find_package(poprt REQUIRED COMPONENTS poprt_runtime poprt_compiler)
+message("Python3_EXECUTABLE: ${Python3_EXECUTABLE}")
+message("poprt_ROOT_PATH: ${poprt_ROOT_PATH}")
+find_package(poprt REQUIRED PATHS ${poprt_ROOT_PATH}
+             COMPONENTS poprt_runtime poprt_compiler)
+
 add_subdirectory(paddle)
 if(WITH_PYTHON)
   add_subdirectory(python)
