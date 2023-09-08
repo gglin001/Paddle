@@ -288,6 +288,7 @@ function(build_protobuf TARGET_NAME BUILD_FOR_HOST)
       BUILD_BYPRODUCTS
         ${PROTOBUF_INSTALL_DIR}/bin/protoc${CMAKE_EXECUTABLE_SUFFIX})
   else()
+    set(PROTOBUF_TAG d750fbf648256c7c631f51ffdbf67d7c18b0114e)
     ExternalProject_Add(
       ${TARGET_NAME}
       ${EXTERNAL_PROJECT_LOG_ARGS}
