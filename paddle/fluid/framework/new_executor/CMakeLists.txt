@@ -3,11 +3,29 @@ add_subdirectory(instruction)
 add_subdirectory(interpreter)
 add_subdirectory(workqueue)
 
-set(STANDALONE_EXECUTOR_SRCS
-    feed_fetch_utils.cc interpretercore.cc new_executor_defs.cc
-    standalone_executor.cc program_interpreter.cc new_ir_interpreter.cc)
+gather_srcs(
+  standalone_executor_SRCS
+  SRCS
+  feed_fetch_utils.cc
+  interpretercore.cc
+  new_executor_defs.cc
+  standalone_executor.cc
+  program_interpreter.cc
+  new_ir_interpreter.cc)
 
-set(STANDALONE_EXECUTOR_DEPS
+# set(STANDALONE_EXECUTOR_SRCS
+#     ${garbage_collector_SRC}
+#     ${instruction_SRC}
+#     ${interpreter_SRC}
+#     ${workqueue_SRC}
+#     feed_fetch_utils.cc
+#     interpretercore.cc
+#     new_executor_defs.cc
+#     standalone_executor.cc
+#     program_interpreter.cc
+#     new_ir_interpreter.cc)
+
+set(standalone_executor_DEPS
     interpreter
     interpretercore_garbage_collector
     workqueue
@@ -19,10 +37,11 @@ set(STANDALONE_EXECUTOR_DEPS
     pd_inplace_pass
     ir)
 
+message("standalone_executor_SRCS: ${standalone_executor_SRCS}")
 cc_library(
   standalone_executor
-  SRCS ${STANDALONE_EXECUTOR_SRCS}
-  DEPS ${STANDALONE_EXECUTOR_DEPS})
+  SRCS ${standalone_executor_SRCS}
+  DEPS ${standalone_executor_DEPS})
 
 cc_library(
   staticgraph_executor_statistics

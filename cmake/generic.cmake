@@ -1319,3 +1319,15 @@ function(math_library TARGET)
       DEPS ${math_library_DEPS} ${math_common_deps})
   endif()
 endfunction()
+
+function(gather_srcs SRC_GROUP)
+  set(options)
+  set(oneValueArgs)
+  set(multiValueArgs "SRCS")
+  cmake_parse_arguments(prefix "" "" "${multiValueArgs}" ${ARGN})
+  foreach(cpp ${prefix_SRCS})
+    set(${SRC_GROUP}
+        "${${SRC_GROUP}};${CMAKE_CURRENT_SOURCE_DIR}/${cpp}"
+        CACHE INTERNAL "")
+  endforeach()
+endfunction()
