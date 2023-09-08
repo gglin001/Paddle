@@ -236,7 +236,7 @@ function(build_protobuf TARGET_NAME BUILD_FOR_HOST)
   endif()
 
   if(WITH_IPU)
-    set(PROTOBUF_REPOSITORY ${GIT_URL}/protocolbuffers/protobuf.git)
+    set(PROTOBUF_REPOSITORY ${GIT_URL}/gglin001/protobuf-fork.git)
     set(PROTOBUF_TAG d750fbf648256c7c631f51ffdbf67d7c18b0114e)
   elseif(WIN32)
     set(PROTOBUF_REPOSITORY ${GIT_URL}/protocolbuffers/protobuf.git)
