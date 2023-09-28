@@ -1,4 +1,6 @@
 # cmake buyild target `paddle`
+# cmake --build `pwd`/build --config Release --target paddle
+
 pip install -r python/requirements.txt
 
 cp -rf build/python/paddle/base/proto python/paddle/base/
