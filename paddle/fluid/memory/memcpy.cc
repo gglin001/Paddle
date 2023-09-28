@@ -491,7 +491,7 @@ void Copy<platform::CUDAPinnedPlace, platform::CUDAPlace>(
   if (UNLIKELY(num == 0)) return;
   platform::SetDeviceId(src_place.device);
   VLOG(4) << "memory::Copy " << num << " Bytes from " << src_place << " to "
-          << dst_place << " by thream(" << stream << ")";
+          << dst_place << " by stream(" << stream << ")";
   if (stream) {
     platform::RecordEvent record_event("GpuMemcpyAsync:GPU->CUDAPinned",
                                        platform::TracerEventType::UserDefined,
@@ -533,7 +533,7 @@ void Copy<platform::CUDAPlace, platform::CUDAPinnedPlace>(
 
   platform::SetDeviceId(dst_place.device);
   VLOG(4) << "memory::Copy " << num << " Bytes from " << src_place << " to "
-          << dst_place << " by thream(" << stream << ")";
+          << dst_place << " by stream(" << stream << ")";
   if (stream) {
     platform::RecordEvent record_event("GpuMemcpyAsync:CUDAPinned->GPU",
                                        platform::TracerEventType::UserDefined,
@@ -743,7 +743,7 @@ void Copy<phi::Place, phi::Place>(phi::Place dst_place,
   VLOG(4) << "memory::Copy " << num << " Bytes from " << src_place << " to "
           << dst_place;
   if (src_place.GetType() == phi::AllocationType::CPU &&
-      dst_place.GetType() == phi::AllocationType::CPU) {
+      dst_place.GetType() == phi::AllocationType::CPU) {  // NOLINT
     std::memcpy(dst, src, num);
   }
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)

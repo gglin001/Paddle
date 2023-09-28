@@ -38,6 +38,7 @@ namespace paddle {
 using PaddleDType = paddle_infer::DataType;
 using PaddlePlace = paddle_infer::PlaceType;
 using PaddleDataLayout = paddle_infer::DataLayout;
+using paddle_infer::InputTensorHookFunc;
 using paddle_infer::OutputTensorHookFunc;
 
 /// \brief Memory manager for PaddleTensor.
@@ -136,9 +137,9 @@ class PD_INFER_DECL PaddleBuf {
 
   ~PaddleBuf() { Free(); }
   PaddleBuf& operator=(const PaddleBuf&);
-  PaddleBuf& operator=(PaddleBuf&&);
+  PaddleBuf& operator=(PaddleBuf&&) noexcept;
   PaddleBuf() = default;
-  PaddleBuf(PaddleBuf&& other);
+  PaddleBuf(PaddleBuf&& other) noexcept;
 
  private:
   void Free();
@@ -323,6 +324,9 @@ class PD_INFER_DECL PaddlePredictor {
   ///
   virtual void RegisterOutputHook(const OutputTensorHookFunc& hookfunc) {}
 
+  /// \brief Same as RegisterOutputHook
+  virtual void RegisterInputHook(const InputTensorHookFunc& hookfunc) {}
+
   /// \brief Clone an existing predictor
   /// When using clone, the same network will be created,
   /// and the parameters between them are shared.
@@ -455,7 +459,7 @@ PD_INFER_DECL int PaddleDtypeSize(PaddleDType dtype);
 
 PD_INFER_DECL std::string get_version();
 
-PD_INFER_DECL std::string UpdateDllFlag(const char* name, const char* value);
+PD_INFER_DECL void UpdateDllFlag(const char* name, const char* value);
 
 PD_INFER_DECL std::shared_ptr<framework::Cipher> MakeCipher(
     const std::string& config_file);

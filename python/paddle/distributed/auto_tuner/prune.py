@@ -26,7 +26,7 @@ def same_cfgs_beside(attr, cur_cfg, history_cfgs):
         for key in cur_cfg:
             if key == attr:
                 continue
-            if key not in history_cfgs or history_cfgs[key] != cur_cfg[key]:
+            if key not in cfg or cfg[key] != cur_cfg[key]:
                 same = False
                 break
         if same:
@@ -56,7 +56,7 @@ def prune_by_mp(tuner_cfg, cur_cfg, history_cfgs=None):
     hidden_size = tuner_cfg["model_cfg"].get("hidden_size", None)
     vocab_size = tuner_cfg["model_cfg"].get("vocab_size", None)
 
-    if not mp_degree:
+    if mp_degree is None:
         return False
 
     if hidden_size and hidden_size % mp_degree != 0:
@@ -83,11 +83,17 @@ def prune_by_mp(tuner_cfg, cur_cfg, history_cfgs=None):
 
 @register_prune
 def prune_by_pp(tuner_cfg, cur_cfg, history_cfgs=None):
+    """
+    Prune by pp (pipeline-parallelism), the rules are:
+    1. PP degree should be evenly divided by number of layers.
+    2. PP degree should be in the candidates of user defined.
+    3. If no candidates, PP degree should be less than or equal to the number of nodes.
+    """
     pp_degree = cur_cfg.get("pp_degree", None)
     num_layers = tuner_cfg["model_cfg"].get("num_layers", None)
-    num_nodes = tuner_cfg.get("num_nodes", 1)
+    num_nodes = tuner_cfg.get("nodes", 1)
 
-    if not pp_degree:
+    if pp_degree is None:
         return False
 
     if num_layers:
@@ -108,20 +114,31 @@ def prune_by_pp(tuner_cfg, cur_cfg, history_cfgs=None):
 
 @register_prune
 def prune_by_mbs(tuner_cfg, cur_cfg, history_cfgs=None):
+    """
+    Prune by mbs (micro batch size), the rules are:
+    1. Micro batch size should be evenly divided by the local batch size.
+    2. Micro batch size should be in the candidates of user defined.
+    3. Prune if a similar configuration with a larger micro batch size resulted in a valid run.
+    """
     micro_batch_size = cur_cfg.get("micro_batch_size", None)
     global_batch_size = tuner_cfg["model_cfg"].get("global_batch_size", None)
+    if global_batch_size == "auto":
+        global_batch_size = cur_cfg["global_batch_size"]
     if global_batch_size:
         local_batch_size = (
             global_batch_size
             // cur_cfg["dp_degree"]
             // cur_cfg["sharding_degree"]
         )
+        if local_batch_size == 0:
+            return True
+
     mbs_candidates = tuner_cfg.get("micro_batch_size", None)
 
     if mbs_candidates == "auto":
         mbs_candidates = tuner_cfg["candidates"]["micro_batch_size"]
 
-    if not micro_batch_size:
+    if micro_batch_size is None:
         return False
 
     if local_batch_size:
@@ -146,6 +163,13 @@ def prune_by_mbs(tuner_cfg, cur_cfg, history_cfgs=None):
 
 @register_prune
 def prune_by_sharding(tuner_cfg, cur_cfg, history_cfgs):
+    """
+    Prune by sharding parameters, the rules are:
+    1. Sharding stage and sharding degree should be specified.
+    2. Sharding stage and degree should be in the candidates of user defined.
+    3. If PP (pipeline-parallelism) degree is not 1, sharding stage must be 1.
+    4. Prune if a similar configuration with a lower sharding stage resulted in a valid run.
+    """
     sharding_stage = cur_cfg.get("sharding_stage", None)
     sharding_degree = cur_cfg.get("sharding_degree", None)
     pp_degree = cur_cfg.get("pp_degree", None)
@@ -183,14 +207,27 @@ def prune_by_sharding(tuner_cfg, cur_cfg, history_cfgs):
                 and cfg.get("time", -1) > 0
             ):
                 return True
+
+    if sharding_degree == 1:
+        cfgs = same_cfgs_beside("sharding_stage", cur_cfg, history_cfgs)
+        if cfgs:
+            return True
+
     return False
 
 
 @register_prune
 def prune_by_recompute(tuner_cfg, cur_cfg, history_cfgs):
+    """
+    Prune by recompute parameters, the rules are:
+    1. If recompute is not used, return False directly.
+    2. Usage of recompute and recompute granularity should be in the candidates of user defined.
+    3. If recompute is not used, but recompute granularity is set, return True for pruning.
+    4. Prune if a similar configuration without using recompute resulted in a valid run.
+    """
     recompute_granularity = cur_cfg.get("recompute_granularity", None)
     use_recompute = cur_cfg.get("use_recompute", None)
-    if not use_recompute:
+    if use_recompute is None:
         return False
 
     recompute_granularity_candidates = tuner_cfg["candidates"].get(
@@ -220,6 +257,11 @@ def prune_by_recompute(tuner_cfg, cur_cfg, history_cfgs):
                 and cfg.get("time", -1) > 0
             ):
                 return True
+
+    if not use_recompute:
+        cfgs = same_cfgs_beside("recompute_granularity", cur_cfg, history_cfgs)
+        if cfgs:
+            return True
 
     return False
 

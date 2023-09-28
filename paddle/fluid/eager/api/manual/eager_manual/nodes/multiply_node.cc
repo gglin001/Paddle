@@ -20,6 +20,7 @@
 #include "paddle/fluid/eager/utils.h"
 #include "paddle/fluid/framework/op_registry.h"
 #include "paddle/fluid/imperative/tracer.h"
+#include "paddle/fluid/platform/profiler/event_tracing.h"
 #include "paddle/fluid/prim/api/all.h"
 #include "paddle/fluid/prim/api/composite_backward/composite_backward_api.h"
 #include "paddle/fluid/prim/utils/utils.h"
@@ -58,8 +59,8 @@ MultiplyGradNode::operator()(
   paddle::small_vector<std::vector<paddle::Tensor>, egr::kSlotSmallVectorSize>
       returns(2);
   for (int i = 0; i < 2; ++i) {
-    out_metas[i].size() == 0 ? returns[i].resize(1)
-                             : returns[i].resize(out_metas[i].size());
+    out_metas[i].empty() ? returns[i].resize(1)
+                         : returns[i].resize(out_metas[i].size());
   }
 
   auto* api_output_0 =
@@ -157,7 +158,7 @@ MultiplyGradNode::operator()(
           1);
 
       // Node Construction
-      auto grad_node = std::shared_ptr<MultiplyDoubleGradNode>(
+      auto grad_node = std::shared_ptr<MultiplyDoubleGradNode>(  // NOLINT
           new MultiplyDoubleGradNode(2, 3));
       // SetAttributes if needed
       grad_node->SetAttributeaxis(axis);
@@ -268,8 +269,8 @@ MultiplyDoubleGradNode::operator()(
   paddle::small_vector<std::vector<paddle::Tensor>, egr::kSlotSmallVectorSize>
       returns(3);
   for (int i = 0; i < 3; ++i) {
-    out_metas[i].size() == 0 ? returns[i].resize(1)
-                             : returns[i].resize(out_metas[i].size());
+    out_metas[i].empty() ? returns[i].resize(1)
+                         : returns[i].resize(out_metas[i].size());
   }
 
   auto* api_output_0 =
@@ -484,8 +485,8 @@ MultiplyGradNode::operator()(
   paddle::small_vector<std::vector<paddle::Tensor>, egr::kSlotSmallVectorSize>
       returns(2);
   for (int i = 0; i < 2; ++i) {
-    out_metas[i].size() == 0 ? returns[i].resize(1)
-                             : returns[i].resize(out_metas[i].size());
+    out_metas[i].empty() ? returns[i].resize(1)
+                         : returns[i].resize(out_metas[i].size());
   }
 
   auto* api_output_0 =
@@ -593,6 +594,7 @@ MultiplyGradNode::operator()(
     std::string output_y_grad_str = paddle::string::Sprintf(
         TENSOR_Y_GRAD_TEMPLATE, egr::EagerUtils::TensorStr(y_grad));
     output_str += output_y_grad_str;
+    VLOG(6) << "gradnode_ptr = " << this;
     VLOG(4) << paddle::string::Sprintf(
         INPUT_PRINT_TEMPLATE, input_str, output_str);
   }

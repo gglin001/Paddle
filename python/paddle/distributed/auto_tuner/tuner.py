@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from .utils import default_candidates
+from .utils import default_candidates, gbs_default_candidates
 
 
 class AutoTuner:
@@ -29,13 +29,18 @@ class AutoTuner:
         self.cur_task_id = 1
         self.task_limit = tuner_cfg.get("task_limit", 100)
 
-        tuner_cfg["candidates"] = default_candidates(tuner_cfg)
         search_algo = tuner_cfg.get("search_algo", "grid")
 
         if search_algo == "grid":
             from .search import GridSearch
 
+            tuner_cfg["candidates"] = default_candidates(tuner_cfg)
             self.algo = GridSearch(tuner_cfg)
+        elif search_algo == "gbs":
+            from .search import GBSSearch
+
+            tuner_cfg["candidates"] = gbs_default_candidates(tuner_cfg)
+            self.algo = GBSSearch(tuner_cfg)
         else:
             raise NotImplementedError()
 
@@ -47,6 +52,9 @@ class AutoTuner:
             return None
         new_cfg = self.algo.search_once(self.history_cfgs)
         self.cur_task_id += 1
-        self.history_cfgs.append(new_cfg)
 
         return new_cfg
+
+    def add_cfg(self, cfg):
+        """Add cfg into history cfgs"""
+        self.history_cfgs.append(cfg)

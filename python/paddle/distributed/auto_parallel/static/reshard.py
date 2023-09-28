@@ -568,7 +568,7 @@ class Inserter:
         return outs
 
     @staticmethod
-    def insert_fill_constant_op(block, idx, op_role):
+    def insert_fill_constant_op(block, idx, op_role, shape):
         """Insert fill constant op into block at the given index."""
         # to avoid name conflict with framework
         helper = LayerHelper('fill_constant@RESHARD', **locals())
@@ -591,7 +591,7 @@ class Inserter:
         attrs['dtype'] = out.dtype
         attrs['op_role'] = op_role
         paddle.utils.get_shape_tensor_inputs(
-            inputs=inputs, attrs=attrs, shape=[0], op_type='fill_constant'
+            inputs=inputs, attrs=attrs, shape=shape, op_type='fill_constant'
         )
         fillconstant_op = block._insert_op(
             idx,
@@ -610,38 +610,6 @@ class Inserter:
         tensor_list = []
         group = new_process_group(ranks)
         idx_offset = 0
-
-        # instant process group before insert allgather op.
-        if not group.is_instantiate():
-            # insert fill_constant op
-            fill_constant_out = Inserter.insert_fill_constant_op(
-                block, idx, op_role
-            )
-            fill_constant_out.stop_gradient = True
-
-            # insert c_allreduce_sum op
-            allreduce_op = block._insert_op(
-                idx + 1,
-                type="c_allreduce_sum",
-                inputs={'X': [fill_constant_out]},
-                outputs={'Out': [fill_constant_out]},
-                attrs={
-                    'ring_id': 0,
-                    'use_calc_stream': True,
-                    'op_role': op_role,
-                },
-            )
-            allreduce_op._set_attr('op_namescope', "/auto_parallel/reshard")
-            # insert c_sync_calc_stream op
-            sync_calc_op = block._insert_op(
-                idx + 2,
-                type="c_sync_calc_stream",
-                inputs={'X': [fill_constant_out]},
-                outputs={'Out': [fill_constant_out]},
-                attrs={'op_role': op_role},
-            )
-            sync_calc_op._set_attr('op_namescope', "/auto_parallel/reshard")
-            idx_offset = 3
 
         # insert c_allgather op
         op_type = 'c_allgather'
@@ -1033,28 +1001,25 @@ class Resharder:
     ):
         assert isinstance(auto_parallel_main_prog, Program), (
             "The type of auto_parallel_main_prog should be Program, "
-            "but got {}.".format(type(auto_parallel_main_prog))
+            f"but got {type(auto_parallel_main_prog)}."
         )
         if auto_parallel_startup_prog is not None:
             assert isinstance(auto_parallel_main_prog, Program), (
                 "The type of auto_parallel_startup_prog should be Program or None, "
-                "but got {}.".format(type(auto_parallel_startup_prog))
+                f"but got {type(auto_parallel_startup_prog)}."
             )
-        assert isinstance(
-            rank_id, int
-        ), "The type of rank_id should be int, " "but got {}.".format(
-            type(rank_id)
+        assert isinstance(rank_id, int), (
+            "The type of rank_id should be int, " f"but got {type(rank_id)}."
         )
         assert isinstance(dist_context, DistributedContext), (
             "The type of dist_context should be DistributedContext, "
-            "but got {}.".format(type(dist_context))
+            f"but got {type(dist_context)}."
         )
 
         if batch_size is not None:
-            assert isinstance(
-                batch_size, int
-            ), "The type of batch_size should be int, " "but got {}.".format(
-                type(batch_size)
+            assert isinstance(batch_size, int), (
+                "The type of batch_size should be int, "
+                f"but got {type(batch_size)}."
             )
 
         self._auto_parallel_main_prog = auto_parallel_main_prog
@@ -1815,9 +1780,7 @@ class Resharder:
                 break
         assert (
             idx is not None
-        ), "The op for reshard cannot be found in the rank {} program.".format(
-            self.rank_id
-        )
+        ), f"The op for reshard cannot be found in the rank {self.rank_id} program."
 
         matched_op = block.ops[idx]
         source_tensor = get_var_with_recursion(

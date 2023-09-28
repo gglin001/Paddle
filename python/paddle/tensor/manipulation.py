@@ -21,19 +21,21 @@ from paddle import _C_ops
 from paddle.tensor import fill_constant
 from paddle.utils.inplace_utils import inplace_apis_in_dygraph_only
 
-from ..fluid.data_feeder import (
+from ..base.data_feeder import (
     check_dtype,
     check_type,
     check_variable_and_dtype,
     convert_dtype,
 )
-from ..fluid.framework import Variable
+from ..base.framework import Variable
 from ..framework import (
     LayerHelper,
     convert_np_dtype_to_dtype_,
     core,
     dygraph_only,
     in_dynamic_mode,
+    in_dynamic_or_pir_mode,
+    in_pir_mode,
 )
 from .creation import _complex_to_real_dtype, _real_to_complex_dtype, zeros
 
@@ -178,9 +180,9 @@ def cast(x, dtype):
             x = paddle.to_tensor([2, 3, 4], 'float64')
             y = paddle.cast(x, 'uint8')
     """
-    if in_dynamic_mode():
-        if not isinstance(dtype, core.VarDesc.VarType):
-            dtype = convert_np_dtype_to_dtype_(dtype)
+    if not isinstance(dtype, (core.VarDesc.VarType, core.DataType)):
+        dtype = convert_np_dtype_to_dtype_(dtype)
+    if in_dynamic_or_pir_mode():
         return _C_ops.cast(x, dtype)
     else:
         check_variable_and_dtype(
@@ -228,6 +230,18 @@ def cast(x, dtype):
             attrs={'in_dtype': x.dtype, 'out_dtype': out.dtype},
         )
         return out
+
+
+@inplace_apis_in_dygraph_only
+def cast_(x, dtype):
+    """
+    Inplace version of ``cast`` API, the output Tensor will be inplaced with input ``x``.
+    Please refer to :ref:`api_paddle_cast`.
+    """
+    if in_dynamic_mode():
+        if not isinstance(dtype, core.VarDesc.VarType):
+            dtype = convert_np_dtype_to_dtype_(dtype)
+        return _C_ops.cast_(x, dtype)
 
 
 def slice(input, axes, starts, ends):
@@ -298,7 +312,7 @@ def slice(input, axes, starts, ends):
             sliced_2 = paddle.slice(input, axes=axes, starts=[minus_3, 0, 2], ends=ends)
             # sliced_2 is input[1:3, 0:2, 2:4].
     """
-    if in_dynamic_mode():
+    if in_dynamic_or_pir_mode():
         attrs = ()
         starts_tensor = None
         ends_tensor = None
@@ -317,31 +331,27 @@ def slice(input, axes, starts, ends):
 
         else:
             raise ValueError(
-                "Input axes must be a python list or tuple, but reveived {}".format(
-                    type(axes)
-                )
+                f"Input axes must be a python list or tuple, but reveived {type(axes)}"
             )
 
         infer_flags = [1 for i in range(len(axes))]
 
-        tmp_tensor_type = core.eager.Tensor
-
         if isinstance(starts, (list, tuple)):
             starts = [
-                item.item(0) if isinstance(item, tmp_tensor_type) else item
+                item.item(0) if isinstance(item, core.eager.Tensor) else item
                 for item in starts
             ]
-        elif isinstance(starts, tmp_tensor_type):
+        elif isinstance(starts, core.eager.Tensor):
             tensor_t = starts.numpy(False)
             starts = list(tensor_t)
             infer_flags = [-1 for i in range(len(axes))]
 
         if isinstance(ends, (list, tuple)):
             ends = [
-                item.item(0) if isinstance(item, tmp_tensor_type) else item
+                item.item(0) if isinstance(item, core.eager.Tensor) else item
                 for item in ends
             ]
-        elif isinstance(ends, tmp_tensor_type):
+        elif isinstance(ends, core.eager.Tensor):
             tensor_t = ends.numpy(False)
             ends = list(tensor_t)
             infer_flags = [-1 for i in range(len(axes))]
@@ -491,10 +501,8 @@ def transpose(x, perm, name=None):
             raise ValueError(
                 "Input(perm) is the permutation of dimensions of Input(x), "
                 "its length should be equal to dimensions of Input(x), "
-                "but received dimension of Input(x) is {}, "
-                "the length of Input(perm) is {}.".format(
-                    len(x.shape), len(perm)
-                )
+                f"but received dimension of Input(x) is {len(x.shape)}, "
+                f"the length of Input(perm) is {len(perm)}."
             )
         for idx, dim in enumerate(perm):
             if dim >= len(x.shape):
@@ -542,9 +550,9 @@ def unstack(x, axis=0, num=None):
 
     """
     if not (-x.ndim <= axis < x.ndim):
-        raise ValueError(
-            '`axis` must be in the range [-{0}, {0})'.format(x.ndim)
-        )
+        raise ValueError(f'`axis` must be in the range [-{x.ndim}, {x.ndim})')
+    if num is not None and (num < 0 or num > x.shape[axis]):
+        raise ValueError(f'`num` must be in the range [0, {x.shape[axis]})')
     if in_dynamic_mode():
         if num is None:
             num = x.shape[axis]
@@ -957,8 +965,10 @@ def _fill_diagonal_tensor_impl(x, y, offset=0, dim1=0, dim2=1, inplace=False):
         if i != dim1 and i != dim2:
             predshape.append(inshape[i])
     diaglen = min(
-        min(inshape[dim1], inshape[dim1] + offset),
-        min(inshape[dim2], inshape[dim2] - offset),
+        inshape[dim1],
+        inshape[dim1] + offset,
+        inshape[dim2],
+        inshape[dim2] - offset,
     )
     predshape.append(diaglen)
     assert tuple(predshape) == tuple(
@@ -1113,10 +1123,10 @@ def concat(x, axis=0, name=None):
             #  [14 15 16]]
     """
     input = x
-    if in_dynamic_mode():
+    if in_dynamic_or_pir_mode():
         if isinstance(axis, Variable):
             axis = axis.item(0)
-        if not isinstance(input, Variable):
+        if not isinstance(input, (Variable, paddle.pir.Value)):
             input = [t for t in input if t.shape.count(0) == 0]
         return _C_ops.concat(input, axis)
     else:
@@ -1436,15 +1446,11 @@ def rot90(x, k=1, axes=[0, 1], name=None):
     total_rot_dims = len(axes)
     if total_rot_dims != 2:
         raise ValueError(
-            "expected total rotation axes == 2, but got axes = {}".format(
-                total_rot_dims
-            )
+            f"expected total rotation axes == 2, but got axes = {total_rot_dims}"
         )
     if input_total_dims < 2:
         raise ValueError(
-            "expected total dims >= 2, but got total dims = {}".format(
-                input_total_dims
-            )
+            f"expected total dims >= 2, but got total dims = {input_total_dims}"
         )
 
     if not (axes[0] != axes[1] and abs(axes[0] - axes[1]) != input_total_dims):
@@ -1499,7 +1505,7 @@ def flatten(x, start_axis=0, stop_axis=-1, name=None):
             end_axis = 2
 
           We get:
-            Out.shape = (3, 1000 * 100, 2)
+            Out.shape = (3, 100 * 100, 4)
 
         Case 2:
 
@@ -1954,8 +1960,8 @@ def split(x, num_or_sections, axis=0, name=None):
     if in_dynamic_mode():
         if isinstance(dim, Variable):
             dim = dim.item(0)
-        assert len(input.shape) + dim >= 0, "(rank(x) + axis) must >= 0"
-        dim = (len(input.shape) + dim) if dim < 0 else dim
+        assert dim + len(input.shape) >= 0, "(rank(x) + axis) must >= 0"
+        dim = (dim + len(input.shape)) if dim < 0 else dim
 
         if isinstance(num_or_sections, (list, tuple)):
             if paddle.utils._contain_var(num_or_sections):
@@ -1967,10 +1973,21 @@ def split(x, num_or_sections, axis=0, name=None):
                 "The type of 'num_or_sections' in split must be int, list or tuple in imperative mode, but "
                 "received %s." % (type(num_or_sections))
             )
+
         if isinstance(num_or_sections, int):
             return _C_ops.split_with_num(input, num_or_sections, dim)
         else:
             return _C_ops.split(input, num_or_sections, dim)
+    elif in_pir_mode():
+        if isinstance(dim, int):
+            assert len(input.shape) + dim >= 0, "(rank(x) + axis) must >= 0"
+            dim = (len(input.shape) + dim) if dim < 0 else dim
+
+        if isinstance(num_or_sections, int):
+            return _C_ops.split_with_num(input, num_or_sections, dim)
+        else:
+            return _C_ops.split(input, num_or_sections, dim)
+
     else:
         check_variable_and_dtype(
             input,
@@ -2038,7 +2055,7 @@ def split(x, num_or_sections, axis=0, name=None):
             attrs['axis'] = dim
 
         if isinstance(num_or_sections, int):
-            assert num_or_sections > 1, 'num_or_sections must be more than 1.'
+            assert num_or_sections > 0, 'num_or_sections must be than 0.'
             if isinstance(dim, int) and input_shape[dim] > 0:
                 assert input_shape[dim] % num_or_sections == 0, (
                     "The input's size along the split dimension "
@@ -2111,9 +2128,7 @@ def vsplit(x, num_or_sections, name=None):
     """
     if x.ndim < 2:
         raise ValueError(
-            "The input tensor's dimension must be greater than 1, but got {}".format(
-                x.ndim
-            )
+            f"The input tensor's dimension must be greater than 1, but got {x.ndim}"
         )
     return split(x, num_or_sections, axis=0, name=name)
 
@@ -2851,6 +2866,7 @@ def scatter(x, index, updates, overwrite=True, name=None):
     Output is obtained by updating the input on selected indices based on updates.
 
     .. code-block:: python
+        :name: code-example1
 
         import paddle
         #input:
@@ -3438,7 +3454,7 @@ def expand(x, shape, name=None):
             print(out)
             # [[1, 2, 3], [1, 2, 3]]
     """
-    if in_dynamic_mode():
+    if in_dynamic_or_pir_mode():
         return _C_ops.expand(x, shape)
     else:
         if isinstance(shape, Variable):
@@ -3572,6 +3588,44 @@ def reshape(x, shape, name=None):
             # the value is [10.]
 
     """
+
+    def get_attr_shape(list_shape):
+        unk_dim_idx = -1
+        attrs_shape = []
+        for dim_idx, dim_size in enumerate(list_shape):
+            if isinstance(dim_size, (Variable, paddle.pir.OpResult)):
+                attrs_shape.append(-1)
+            else:
+                attrs_shape.append(dim_size)
+                if dim_size == -1:
+                    assert unk_dim_idx == -1, (
+                        "Only one dimension value of 'shape' in reshape can "
+                        "be -1. But received shape[%d] is also -1.\n"
+                        "\n\t# N = x.shape()[2]\t\t# N is an int. "
+                        "(NOT recommend under @to_static)\n\tN = paddle.shape(x)[2]\t\t"
+                        "# N is a Tensor. (Recommend)\n\tz = paddle.reshape([N, -1, 4])"
+                        "\t# z.shape is [-1, -1, 4]\n\n"
+                        "    If your target shape in Reshape represents dynamic shape, "
+                        "please turn it into a Tensor under @to_static. See above example for details."
+                        % dim_idx
+                    )
+                    unk_dim_idx = dim_idx
+                elif dim_size == 0:
+                    assert dim_idx < len(x.shape), (
+                        "The index of 0 in `shape` must be less than "
+                        "the input tensor X's dimensions. "
+                        "But received shape[%d] = 0, X's dimensions = %d."
+                        % (dim_idx, len(x.shape))
+                    )
+                else:
+                    assert dim_size > 0, (
+                        "Each dimension value of 'shape' in reshape must not "
+                        "be negative except one unknown dimension. "
+                        "But received shape[%d] = %s."
+                        % (dim_idx, str(dim_size))
+                    )
+        return attrs_shape
+
     if in_dynamic_mode():
         if isinstance(shape, (list, tuple)):
             new_shape = []
@@ -3580,7 +3634,6 @@ def reshape(x, shape, name=None):
                     new_shape.append(ele.item())
                 else:
                     new_shape.append(ele)
-
             if new_shape == x.shape:
                 out = x
             else:
@@ -3590,8 +3643,24 @@ def reshape(x, shape, name=None):
             out = _C_ops.reshape(x, shape)
         else:
             raise ValueError(
-                "shape must be an instance of `list`, `tuple` or `Variable`,"
-                " got '{}.'".format(type(shape))
+                "shape must be an instance of `list`, `tuple` `Variable`,"
+                f" got '{type(shape)}.'"
+            )
+        return out
+    elif in_pir_mode():
+        if isinstance(shape, (list, tuple)):
+            if paddle.utils._contain_var(shape):
+                new_shape = paddle.utils._convert_to_tensor_list(shape)
+            else:
+                new_shape = get_attr_shape(shape)
+            out = _C_ops.reshape(x, new_shape)
+        elif isinstance(shape, paddle.pir.OpResult):
+            shape.stop_gradient = True
+            out = _C_ops.reshape(x, shape)
+        else:
+            raise ValueError(
+                "shape must be an instance of `list`, `tuple` `OpResult(in pir mode)`,"
+                f" got '{type(shape)}.'"
             )
 
         return out
@@ -3612,43 +3681,6 @@ def reshape(x, shape, name=None):
             'reshape',
         )
         check_type(shape, 'shape', (list, tuple, Variable), 'reshape')
-
-        def get_attr_shape(list_shape):
-            unk_dim_idx = -1
-            attrs_shape = []
-            for dim_idx, dim_size in enumerate(list_shape):
-                if isinstance(dim_size, Variable):
-                    attrs_shape.append(-1)
-                else:
-                    attrs_shape.append(dim_size)
-                    if dim_size == -1:
-                        assert unk_dim_idx == -1, (
-                            "Only one dimension value of 'shape' in reshape can "
-                            "be -1. But received shape[%d] is also -1.\n"
-                            "\n\t# N = x.shape()[2]\t\t# N is an int. "
-                            "(NOT recommend under @to_static)\n\tN = paddle.shape(x)[2]\t\t"
-                            "# N is a Tensor. (Recommend)\n\tz = paddle.reshape([N, -1, 4])"
-                            "\t# z.shape is [-1, -1, 4]\n\n"
-                            "    If your target shape in Reshape represents dynamic shape, "
-                            "please turn it into a Tensor under @to_static. See above example for details."
-                            % dim_idx
-                        )
-                        unk_dim_idx = dim_idx
-                    elif dim_size == 0:
-                        assert dim_idx < len(x.shape), (
-                            "The index of 0 in `shape` must be less than "
-                            "the input tensor X's dimensions. "
-                            "But received shape[%d] = 0, X's dimensions = %d."
-                            % (dim_idx, len(x.shape))
-                        )
-                    else:
-                        assert dim_size > 0, (
-                            "Each dimension value of 'shape' in reshape must not "
-                            "be negative except one unknown dimension. "
-                            "But received shape[%d] = %s."
-                            % (dim_idx, str(dim_size))
-                        )
-            return attrs_shape
 
         inputs = {"X": x}
         attrs = {}
@@ -3698,7 +3730,7 @@ def reshape_(x, shape, name=None):
         else:
             raise ValueError(
                 "shape must be an instance of `list`, `tuple` or `Variable`,"
-                " got '{}.'".format(type(shape))
+                f" got '{type(shape)}.'"
             )
 
         return out
@@ -3776,7 +3808,7 @@ def gather_nd(x, index, name=None):
             output = paddle.gather_nd(x, index) #[[3, 4]]
 
     """
-    if in_dynamic_mode():
+    if in_dynamic_or_pir_mode():
         return _C_ops.gather_nd(x, index)
     else:
         check_variable_and_dtype(
@@ -4373,7 +4405,6 @@ def repeat_interleave(x, repeats, axis=None, name=None):
     if axis is None:
         x = paddle.flatten(x)
         axis = 0
-
     if in_dynamic_mode():
         if isinstance(repeats, Variable):
             return _C_ops.repeat_interleave_with_tensor_index(x, repeats, axis)
@@ -4459,12 +4490,12 @@ def moveaxis(x, source, destination, name=None):
         if axis[0] < 0:
             assert (
                 axis[0] >= -ndim
-            ), "'source' must be in the range of [-{0}, {0})".format(ndim)
+            ), f"'source' must be in the range of [-{ndim}, {ndim})"
             src[i] += ndim
         else:
             assert (
                 axis[0] < ndim
-            ), "'source' must be in the range of [-{0}, {0})".format(ndim)
+            ), f"'source' must be in the range of [-{ndim}, {ndim})"
 
         assert isinstance(
             axis[1], int
@@ -4472,12 +4503,12 @@ def moveaxis(x, source, destination, name=None):
         if axis[1] < 0:
             assert (
                 axis[1] >= -ndim
-            ), "'source' must be in the range of [-{0}, {0})".format(ndim)
+            ), f"'source' must be in the range of [-{ndim}, {ndim})"
             dst[i] += ndim
         else:
             assert (
                 axis[1] < ndim
-            ), "'source' must be in the range of [-{0}, {0})".format(ndim)
+            ), f"'source' must be in the range of [-{ndim}, {ndim})"
         perm[dst[i]] = src[i]
         src_dims.remove(src[i])
         dst_dims.remove(dst[i])
@@ -4520,13 +4551,11 @@ def moveaxis(x, source, destination, name=None):
 def non_negative_axis(arr, axis):
     ndim = len(arr.shape)
     if axis >= 0:
-        assert (
-            axis < ndim
-        ), "'axis'  must be in the range of [-{0}, {0})".format(ndim)
+        assert axis < ndim, f"'axis'  must be in the range of [-{ndim}, {ndim})"
     else:
         assert (
             axis >= -ndim
-        ), "'axis'  must be in the range of [-{0}, {0})".format(ndim)
+        ), f"'axis'  must be in the range of [-{ndim}, {ndim})"
         axis += ndim
 
     return axis
@@ -4985,6 +5014,147 @@ def unflatten(x, axis, shape, name=None):
         )
     x = x.reshape(new_shape)
     return x
+
+
+@dygraph_only
+def as_strided(x, shape, stride, offset=0, name=None):
+    """
+    View x with specified shape, stride and offset.
+
+    Note that the output Tensor will share data with origin Tensor and doesn't
+    have a Tensor copy in ``dygraph`` mode.
+
+    Args:
+        x (Tensor): An N-D Tensor. The data type is ``float32``, ``float64``, ``int32``, ``int64`` or ``bool``
+        shape (list|tuple): Define the target shape. Each element of it should be integer.
+        stride (list|tuple): Define the target stride. Each element of it should be integer.
+        offset (int): Define the target Tensor's offset from x's holder. Default: 0.
+        name (str, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
+
+    Returns:
+        Tensor, A as_strided Tensor with the same data type as ``x``.
+
+    Examples:
+        .. code-block:: python
+
+            import paddle
+            paddle.base.set_flags({"FLAGS_use_stride_kernel": True})
+
+            x = paddle.rand([2, 4, 6], dtype="float32")
+
+            out = paddle.as_strided(x, [8, 6], [6, 1])
+            print(out)
+            # the shape is [8, 6].
+            # the stride is [6, 1].
+    """
+    return _C_ops.as_strided(x, shape, stride, offset)
+
+
+@dygraph_only
+def view(x, shape_or_dtype, name=None):
+    """
+    View x with specified shape or dtype.
+
+    Note that the output Tensor will share data with origin Tensor and doesn't
+    have a Tensor copy in ``dygraph`` mode.
+
+    Args:
+        x (Tensor): An N-D Tensor. The data type is ``float32``, ``float64``, ``int32``, ``int64`` or ``bool``
+        shape_or_dtype (list|tuple|np.dtype|str|VarType): Define the target shape or dtype. If list or tuple, shape_or_dtype represents shape, each element of it should be integer. If np.dtype or str or VarType, shape_or_dtype represents dtype, it can be bool, float16, float32, float64, int8, int32, int64, uint8.
+        name (str, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
+
+    Returns:
+        Tensor, A viewed Tensor with the same data as ``x``.
+
+    Examples:
+        .. code-block:: python
+
+            import paddle
+            paddle.base.set_flags({"FLAGS_use_stride_kernel": True})
+
+            x = paddle.rand([2, 4, 6], dtype="float32")
+
+            out = paddle.view(x, [8, 6])
+            print(out)
+
+
+            import paddle
+            paddle.base.set_flags({"FLAGS_use_stride_kernel": True})
+
+            x = paddle.rand([2, 4, 6], dtype="float32")
+
+            out = paddle.view(x, "uint8")
+            print(out)
+    """
+    if isinstance(shape_or_dtype, (list, tuple)):
+        return _C_ops.view_shape(x, shape_or_dtype)
+    else:
+        if not isinstance(shape_or_dtype, core.VarDesc.VarType):
+            shape_or_dtype = convert_np_dtype_to_dtype_(shape_or_dtype)
+        return _C_ops.view_dtype(x, shape_or_dtype)
+
+
+@dygraph_only
+def view_as(x, other, name=None):
+    """
+    View x with other's shape.
+
+    Note that the output Tensor will share data with origin Tensor and doesn't
+    have a Tensor copy in ``dygraph`` mode.
+
+    Args:
+        x (Tensor): An N-D Tensor. The data type is ``float32``, ``float64``, ``int32``, ``int64`` or ``bool``
+        other (Tensor): The result tensor has the same size as other.
+        name (str, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
+
+    Returns:
+        Tensor, A viewed Tensor with the same shape as ``other``.
+
+    Examples:
+        .. code-block:: python
+
+            import paddle
+            paddle.base.set_flags({"FLAGS_use_stride_kernel": True})
+
+            x = paddle.rand([2, 4, 6], dtype="float32")
+            y = paddle.rand([8, 6], dtype="float32")
+
+            out = paddle.view_as(x, y)
+            print(out)
+    """
+    return _C_ops.view_shape(x, other.shape)
+
+
+@dygraph_only
+def unfold(x, axis, size, step, name=None):
+    """
+    View x with specified shape, stride and offset, which contains all slices of size from x in the dimension axis.
+
+    Note that the output Tensor will share data with origin Tensor and doesn't
+    have a Tensor copy in ``dygraph`` mode.
+
+    Args:
+        x (Tensor): An N-D Tensor. The data type is ``float32``, ``float64``, ``int32``, ``int64`` or ``bool``
+        axis (int): The axis along which the input is unfolded.
+        size (int): The size of each slice that is unfolded.
+        step (int): The step between each slice.
+        name (str, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
+
+    Returns:
+        Tensor, A unfold Tensor with the same data type as ``x``.
+
+    Examples:
+        .. code-block:: python
+
+            import paddle
+            paddle.base.set_flags({"FLAGS_use_stride_kernel": True})
+
+            x = paddle.arange(9, dtype="float64")
+
+            out = paddle.unfold(x, 0, 2, 4)
+            print(out) # [[0, 1], [4, 5]]
+    """
+    return _C_ops.tensor_unfold(x, axis, size, step)
 
 
 # TODO(dev): We need avoid implementing it by this way.
