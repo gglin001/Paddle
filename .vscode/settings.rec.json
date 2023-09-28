@@ -1,7 +1,8 @@
 {
     "cmake.configureSettings": {
-        "CMAKE_INSTALL_PREFIX": "${workspaceFolder}/build/install",
-        "WITH_GPU": "OFF",
+        // "CMAKE_INSTALL_PREFIX": "${workspaceFolder}/build/install",
+        // "WITH_GPU": "OFF",
+        "WITH_CUSTOM_DEVICE": "ON",
     },
     "python.analysis.extraPaths": [
         // "${workspaceFolder}/build/python/",
